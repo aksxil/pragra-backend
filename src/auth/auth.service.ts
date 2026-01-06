@@ -63,16 +63,15 @@ export class AuthService {
     const verifyLink = `https://pragra-frontend.vercel.app/verify-email?token=${verificationToken}`;
 
     // Send verification email
-    await transporter.sendMail({
-      from: `"Pragra App" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: 'Verify your email',
-      html: `
-        <h3>Hello ${user.name}</h3>
-        <p>Please verify your email to activate your account:</p>
-        <a href="${verifyLink}">Verify Email</a>
-      `,
-    });
+    try {
+      await transporter.sendMail({
+        to: user.email,
+        subject: 'Verify your email',
+        html: `<a href="${verifyUrl}">Verify Email</a>`,
+      });
+    } catch (error) {
+      console.log('Email sending failed, skipping in production');
+    }
 
     return {
       message:
