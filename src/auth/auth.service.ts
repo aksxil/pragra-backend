@@ -67,7 +67,7 @@ export class AuthService {
       await transporter.sendMail({
         to: user.email,
         subject: 'Verify your email',
-        html: `<a href="${verifyUrl}">Verify Email</a>`,
+        html: `<a href="${verifyLink}">Verify Email</a>`,
       });
     } catch (error) {
       console.log('Email sending failed, skipping in production');
