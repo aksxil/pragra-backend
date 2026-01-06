@@ -42,8 +42,8 @@ export class OrdersService {
             quantity: 1,
           },
         ],
-        success_url: 'http://localhost:3001/success',
-        cancel_url: 'http://localhost:3001/cancel',
+        success_url: 'https://pragra-frontend.vercel.app/success',
+        cancel_url: 'https://pragra-frontend.vercel.app/cancel',
       });
 
       await this.orderModel.create({

@@ -60,7 +60,7 @@ export class AuthService {
     });
 
     // Verification link (frontend)
-    const verifyLink = `http://localhost:3001/verify-email?token=${verificationToken}`;
+    const verifyLink = `https://pragra-frontend.vercel.app/verify-email?token=${verificationToken}`;
 
     // Send verification email
     await transporter.sendMail({

@@ -46,7 +46,7 @@ export class AuthController {
     const token = this.authService.generateJwt(req.user);
 
     return res.redirect(
-      `http://localhost:3001/oauth-success?token=${token}`,
+      `https://pragra-frontend.vercel.app/oauth-success?token=${token}`,
     );
   }
 }
