@@ -13,10 +13,22 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class AuthService {
+  private transporter;
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
-  ) {}
+  ) {
+    // ⚠️ Transporter created once (NOT inside signup)
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
+
   generateJwt(user: any) {
     return this.jwtService.sign({
       userId: user._id,
@@ -26,53 +38,51 @@ export class AuthService {
 
   // ================= SIGNUP =================
   async signup(body: { name: string; email: string; password: string }) {
-    // Check if user already exists
-    const existingUser = await this.userModel.findOne({ email: body.email });
+    const { name, email, password } = body;
+
+    // ✅ VALIDATION (VERY IMPORTANT)
+    if (!name || !email || !password) {
+      throw new BadRequestException('All fields are required');
+    }
+
+    const existingUser = await this.userModel.findOne({ email });
     if (existingUser) {
       throw new BadRequestException('User already exists');
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(body.password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate email verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    // Create user
-    const user = new this.userModel({
-      name: body.name,
-      email: body.email,
+    const user = await this.userModel.create({
+      name,
+      email,
       password: hashedPassword,
       isVerified: false,
       verificationToken,
       provider: 'local',
     });
 
-    await user.save();
-
-    // Setup email transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Verification link (frontend)
-    const verifyLink = `https://pragra-frontend.vercel.app/verify-email?token=${verificationToken}`;
-
-    // Send verification email
+    // 🔥 EMAIL SHOULD NEVER BLOCK SIGNUP
     try {
-      await transporter.sendMail({
+      const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+      await this.transporter.sendMail({
         to: user.email,
         subject: 'Verify your email',
-        html: `<a href="${verifyLink}">Verify Email</a>`,
+        html: `
+          <h3>Verify your email</h3>
+          <p>Click the link below to verify your account:</p>
+          <a href="${verifyLink}">${verifyLink}</a>
+        `,
       });
     } catch (error) {
-      console.log('Email sending failed, skipping in production');
+      console.log(
+        '⚠️ Email sending failed (ignored to avoid blocking signup)',
+      );
     }
 
+    // ✅ ALWAYS RETURN RESPONSE
     return {
       message:
         'Signup successful. Please check your email to verify your account.',
@@ -94,7 +104,7 @@ export class AuthService {
     }
 
     user.isVerified = true;
-    user.verificationToken = null;
+    user.verificationToken = undefined;
 
     await user.save();
 
@@ -105,27 +115,27 @@ export class AuthService {
 
   // ================= LOGIN =================
   async login(body: { email: string; password: string }) {
-    const user = await this.userModel.findOne({ email: body.email });
+    const { email, password } = body;
 
+    if (!email || !password) {
+      throw new BadRequestException('Email and password are required');
+    }
+
+    const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Block login if email not verified
     if (!user.isVerified) {
       throw new UnauthorizedException('Please verify your email first');
     }
 
-    const isPasswordMatch = await bcrypt.compare(body.password, user.password);
-
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const token = this.jwtService.sign({
-      userId: user._id,
-      email: user.email,
-    });
+    const token = this.generateJwt(user);
 
     return {
       message: 'Login successful',
