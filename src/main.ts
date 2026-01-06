@@ -5,7 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: 'https://pragra-frontend.vercel.app/', // frontend URL
+    origin: 'https://pragra-frontend.vercel.app', // frontend URL
     credentials: true,
   });
 
